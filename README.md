@@ -1,247 +1,136 @@
-- `common/` holds everything both server and clients need (models, data‑loading, metrics).
+# IoT-FedAggregator
 
-- `server/` contains only the code to start your FL server; devs who only run the server can git sparse-checkout set server/ common/.
+Flower-based federated learning for screenshot classification. The project trains a small PyTorch CNN across distributed clients while keeping each client's image data under its own local `client_<id>` partition.
 
-- `client/` contains only client code plus its data/ folder; each teammate clones client/ + common/, drops in their own client_<ID> data, and runs client.py.
+## What Is In This Repo
 
-- Separate `requirements.txt` means you can pin different deps if, say, the client needs PyTorch while the server only needs Flower.
-# Directory Structure Generator
+```text
+.
+├── flower-fl/                  # Runnable Flower application
+│   ├── client/                 # Real FL clients and local client data mount point
+│   │   ├── client.py           # Basic client
+│   │   ├── client_v2.py        # Client with cleaner metrics logging
+│   │   ├── data/               # Ignored local client datasets
+│   │   └── requirements.txt
+│   ├── common/                 # Shared model, data loading, and metrics code
+│   ├── server/                 # Flower server, Dockerfile, server requirements
+│   └── tools/
+│       ├── diagnostics/        # TCP connectivity checks
+│       └── simulation/         # Dummy one-client Flower smoke test
+├── scripts/                    # Repo maintenance and dataset preparation scripts
+├── experiments/                # Recorded experiment logs and generated outputs
+├── docs/reports/               # Final project report and supporting docs
+├── archive/legacy/             # Older notebook/prototype artifacts
+├── LICENSE
+└── README.md
+```
 
-A lightweight Python script (`create_structure.py`) to scaffold your Flower‑based federated learning project. Quickly generate shared libraries, server components, client data partitions, or the full stack with one command.
+The active training code lives in `flower-fl/`. Experiment logs, report files, and legacy notebooks are kept outside the runtime app so the main client/server paths stay easier to scan.
 
----
+## Requirements
 
-## Prerequisites
+- Python 3.9+ recommended
+- `pip`
+- Client machines need PyTorch and torchvision
+- Server machines need Flower, and also PyTorch when using `server.py` because it initializes the global CNN parameters
 
-- **Python 3.6+** (no external dependencies beyond the standard library)  
-- (Optional) A virtual environment for isolation  
-
----
-
-## Installation
-
-1. **Clone** this repository (or copy `create_structure.py` into your project root):  
-   ```bash
-   git clone <repo-url>
-   cd <repo-dir>
-   ```
-2. **Make executable** (optional):  
-   ```bash
-   chmod +x create_structure.py
-   ```
-
----
-
-## Usage
+For a single local environment:
 
 ```bash
-python create_structure.py [OPTIONS]
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r flower-fl/server/requirements.txt -r flower-fl/client/requirements.txt
 ```
 
-| Flag                       | Description                                                                                          |
-|----------------------------|------------------------------------------------------------------------------------------------------|
-| `-c, --client-id <ID>`     | _(default: `1`)_ Use numeric ID to name your client folder (`client/data/client_<ID>/`).             |
-| `-b, --base-dir <DIR>`     | _(default: `flower-fl`)_ Base directory under which to scaffold.                                     |
-| `--server`                 | Create **only** the shared (`common/`) and `server/` directories.                                     |
-| `--full`                   | Create **all**: `common/`, `server/`, **and** one client folder under `client/data/`.                |
-| _no flag_                  | Default to **client‑only** (plus shared `common/`).                                                   |
+On separate machines, install only the requirements needed by that role.
 
----
+## Prepare Client Data
 
-## Generated Layout
-
-### 1. Client‑only (default)
+Client data is expected at:
 
 ```text
-flower-fl/
-├── common/
-│   ├── models/
-│   └── utils/
-└── client/
-    └── data/
-        └── client_<ID>/
-            ├── train/
-            └── test/
+flower-fl/client/data/client_<id>/
+├── train/
+│   ├── Food/
+│   ├── movie/
+│   ├── notes/
+│   ├── real_life/
+│   └── shopping/
+└── test/
+    ├── Food/
+    ├── movie/
+    ├── notes/
+    ├── real_life/
+    └── shopping/
 ```
 
-### 2. Server‑only (`--server`)
-
-```text
-flower-fl/
-├── common/
-│   ├── models/
-│   └── utils/
-└── server/
-    ├── server.py
-    ├── requirements.txt
-    └── Dockerfile
-```
-
-### 3. Full stack (`--full`)
-
-```text
-flower-fl/
-├── common/
-│   ├── models/
-│   └── utils/
-├── server/
-│   ├── server.py
-│   ├── requirements.txt
-│   └── Dockerfile
-└── client/
-    ├── client.py
-    ├── requirements.txt
-    └── data/
-        └── client_<ID>/
-            ├── train/
-            └── test/
-```
-
----
-
-## Examples
-
-- **Client only** (ID 2):  
-  ```bash
-  python create_structure.py --client-id 2
-  ```
-
-- **Server only**:  
-  ```bash
-  python create_structure.py --server
-  ```
-
-- **Full stack** (client 5):  
-  ```bash
-  python create_structure.py --full --client-id 5
-  ```
-
----
-
-
-
-## Git Ignore
-
-To prevent dataset images (and other generated files) from being committed, add a `.gitignore` at your project root with:
-
-```gitignore
-# Ignore all client data images and labels
-/client/data/**
-
-# (Optional) keep an empty placeholder file
-!/client/data/**/.gitkeep
-
-# Ignore dataset archives
-*.zip
-
-# Python cache and bytecode
-__pycache__/
-*.py[cod]
-
-# Virtual environment
-.venv/
-
-# Logs and temporary files
-*.log
-temp*/
-
-# IDE/editor settings
-.vscode/
-.idea/
-
-# Flower checkpoints or other model artifacts
-*.pth
-*.pt
-```
-## 🔒 Windows Firewall & Port Forwarding
-
-To allow external clients to reach your Flower server on port 8080, you need to:
-
-1. **Open the port in Windows Defender Firewall**  
-2. **Forward that port on your router**  
-
----
-
-### 1. Windows Firewall Configuration
-
-#### A. Using the GUI
-1. Press ⊞ Win, type **“Windows Defender Firewall with Advanced Security”**, and press ENTER.  
-2. In the left pane, click **Inbound Rules**.  
-3. In the right pane, click **New Rule…**  
-4. Select **Port**, click **Next**.  
-5. Choose **TCP**, select **Specific local ports**, enter `8080`, click **Next**.  
-6. Select **Allow the connection**, click **Next**.  
-7. Check the network profiles you trust (e.g. **Domain**, **Private**), click **Next**.  
-8. Give the rule a name (e.g. “Flower FL Server TCP 8080”), click **Finish**.
-
-#### B. Using PowerShell (Admin)
-Open PowerShell **as Administrator** and run:
-```powershell
-New-NetFirewallRule `
-  -DisplayName "Flower FL Server TCP 8080" `
-  -Direction Inbound `
-  -Protocol TCP `
-  -LocalPort 8080 `
-  -Action Allow `
-  -Profile Private,Domain
-  ```
-
-  
-  
-## 🔒 Ubuntu Firewall & Port Forwarding
-
-To expose your Flower server on port 8080 from an Ubuntu machine, you’ll:
-
-1. Open the port in the OS firewall (UFW)  
-2. (If this Ubuntu box is acting as your network gateway) Enable IP forwarding and add an iptables NAT rule  
-
----
-
-### 1. Allow TCP 8080 in UFW
+Use the dataset splitter when you have a zipped image dataset arranged either as class folders at the zip root or as one top-level folder containing class folders:
 
 ```bash
-# Check UFW status (enable if it’s inactive)
-sudo ufw status verbose
-sudo ufw enable   # only if ufw is inactive
-
-# Allow Flower’s port
-sudo ufw allow 8080/tcp
-
-# Reload & verify
-sudo ufw reload
-sudo ufw status
-```
-
-# How to use Client and server sim script
-python client_sim.py --server <SERVER_IP>:8080
-
-
-cd flower-fl/server
-python server_sim.py --port 8080 --rounds 3
-
-# how to use client and server .py files
-
-```
-cd flower-fl/client
-python client.py \
+python3 scripts/prepare_dataset.py path/to/screenshots.zip \
   --client-id 1 \
-  --server-address 192.168.1.50:8080 \
+  --fraction 0.2 \
+  --train-ratio 0.8
+```
+
+This writes to `flower-fl/client/data/client_1/` by default and does not overwrite existing images. Client data is ignored by git.
+
+## Run Federated Training
+
+Start the server:
+
+```bash
+cd flower-fl/server
+python3 server.py \
+  --port 8080 \
+  --num-rounds 10 \
+  --strategy FedAvg \
+  --local-epochs 1 \
+  --learning-rate 0.01 \
   --num-classes 5
 ```
 
-```
-python server.py --port 8080 --num-rounds 20
+Start one or more clients in separate terminals or on separate machines:
+
+```bash
+cd flower-fl/client
+python3 client_v2.py \
+  --client-id 1 \
+  --server-address 127.0.0.1:8080 \
+  --num-classes 5
 ```
 
-# How to use new server.py
+Supported server strategies are `FedAvg`, `FedAdagrad`, `FedAdam`, and `FedYogi`. The server saves the best model parameters as `best_model.npz` in the server working directory; model artifacts are ignored by git.
+
+For networked clients, replace `127.0.0.1:8080` with the server host/IP and make sure TCP port `8080` is reachable through the OS firewall and router/NAT rules.
+
+## Smoke Tests And Diagnostics
+
+Run a dummy Flower setup without image data:
+
+```bash
+python3 flower-fl/tools/simulation/server_sim.py --port 8080 --rounds 3
+python3 flower-fl/tools/simulation/client_sim.py --server 127.0.0.1:8080
 ```
-# Default FedAvg, 10 rounds
-python server.py
 
-# 25 rounds, use FedAdam
-python server.py --num-rounds 25 --strategy FedAdam
+Check raw TCP connectivity before debugging Flower itself:
 
-# 50 rounds, try the adaptive Yogi optimizer
-python server.py -r 50 -s FedYogi
-
+```bash
+python3 flower-fl/tools/diagnostics/server_ping.py --port 8080
+python3 flower-fl/tools/diagnostics/client_ping.py 127.0.0.1 --port 8080
 ```
+
+## Scripts
+
+`scripts/prepare_dataset.py` prepares one client's train/test split from a dataset zip.
+
+`scripts/create_structure.py` scaffolds a Flower project layout. Use it with a new target directory to avoid overwriting this app:
+
+```bash
+python3 scripts/create_structure.py --full --client-id 2 --base-dir scratch-fl
+```
+
+## Experiment Artifacts
+
+Past run logs are stored in `experiments/logs/`. Server-generated text/image outputs that used to live under `flower-fl/server/` are now in `experiments/server/` so the active server folder contains only runtime code and dependencies.

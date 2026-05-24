@@ -4,7 +4,7 @@ import numpy as np
 import argparse
 
 class DummyClient(fl.client.NumPyClient):
-    def get_parameters(self):
+    def get_parameters(self, config=None):
         # Send a 2×2 “parameter matrix” of random floats
         params = [np.random.randn(2, 2).astype(np.float32)]
         print("→ get_parameters(): sending", params)

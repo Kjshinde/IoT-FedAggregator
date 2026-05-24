@@ -2,6 +2,7 @@
 import flwr as fl
 import argparse
 import numpy as np
+from flwr.common import ndarrays_to_parameters
 from flwr.server.strategy import FedAvg
 
 def main():
@@ -11,7 +12,7 @@ def main():
     args = parser.parse_args()
 
     # Dummy initial parameters (2×2 float32 matrix)
-    initial_parameters = [np.zeros((2, 2), dtype=np.float32)]
+    initial_parameters = ndarrays_to_parameters([np.zeros((2, 2), dtype=np.float32)])
 
     # FedAvg Strategy tweaked for a single client
     strategy = FedAvg(

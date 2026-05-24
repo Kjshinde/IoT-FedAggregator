@@ -1,11 +1,14 @@
 
 /flower_framework_testing/flower_framework_testing/krutyanjay_testing/flower_venv/
 
-# Don't keep the raw image file
+# Do not commit raw client image data.
 /flower-fl/client/data/**
 
-# (Optional) keep an empty placeholder file
-!/client/data/**/.gitkeep
+# Keep data directories discoverable in fresh clones.
+!/flower-fl/client/data/
+!/flower-fl/client/data/.gitkeep
+!/flower-fl/client/data/**/
+!/flower-fl/client/data/**/.gitkeep
 
 # Ignore dataset archives (cause zip archives are more than 100MB)
 *.zip
@@ -24,7 +27,10 @@ temp*/
 # IDE/editor settings
 .vscode/
 .idea/
+.DS_Store
 
 # Flower checkpoints or other model artifacts
 *.pth
 *.pt
+*.npz
+*.npy
